@@ -2,24 +2,27 @@
 require_once 'layout/header.php';
 
 // CONFIGURATION
-// Fallback if not defined in config.php
 if (!defined('API_BASE_URL')) {
-    define('API_BASE_URL', '../api'); 
+    define('API_BASE_URL', getEnvSafe('API_PUBLIC_URL', 'https://apisuro.online')); 
 }
+
+$staffId = $_SESSION['finance_id'];
+$staffRole = $_SESSION['finance_role'];
 
 // PARAMS
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
-$limit = 50;
+$limit = 20; // Reduced limit for mobile-friendly scrolling
 $offset = ($page - 1) * $limit;
 
 $q = $_GET['q'] ?? '';
 $type = $_GET['type'] ?? 'all';
 $status = $_GET['status'] ?? 'all';
-$dateFrom = $_GET['date_from'] ?? date('Y-m-01'); // Default to start of month
+$dateFrom = $_GET['date_from'] ?? date('Y-m-d', strtotime('-7 days')); // Default to last 7 days for mobile
 $dateTo = $_GET['date_to'] ?? date('Y-m-d');
+$viewScope = $_GET['scope'] ?? 'my'; // 'my' or 'all'
 
 // BUILD QUERY
-$where = ["t.status != 'pending'"]; // History only shows processed items
+$where = ["t.status != 'pending'"]; 
 $params = [];
 
 // Date Filter
@@ -43,6 +46,12 @@ if ($type !== 'all') {
 if ($status !== 'all') {
     $where[] = "t.status = ?";
     $params[] = $status;
+}
+
+// Scope Filter (Staff only sees their own by default)
+if ($viewScope === 'my') {
+    $where[] = "t.processed_by_admin_id = ?";
+    $params[] = $staffId;
 }
 
 $whereSQL = implode(" AND ", $where);
@@ -75,242 +84,295 @@ $totalRecords = $stmtCount->fetchColumn();
 $totalPages = ceil($totalRecords / $limit);
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="text-white fw-bold mb-0">TRANSACTION ARCHIVE</h4>
-    
-    <!-- EXPORT FORM -->
-    <form action="export.php" method="POST" target="_blank" class="d-inline">
-        <input type="hidden" name="q" value="<?= htmlspecialchars($q) ?>">
-        <input type="hidden" name="type" value="<?= htmlspecialchars($type) ?>">
-        <input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>">
-        <input type="hidden" name="date_from" value="<?= htmlspecialchars($dateFrom) ?>">
-        <input type="hidden" name="date_to" value="<?= htmlspecialchars($dateTo) ?>">
-        <button type="submit" class="btn btn-success fw-bold btn-sm">
-            <i class="bi bi-file-earmark-spreadsheet me-1"></i> EXPORT CSV
-        </button>
-    </form>
-</div>
+<!-- Sakura Particles Integration -->
+<style>
+    #sakura-container-history { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+    .sakura-petal { position: absolute; background: linear-gradient(135deg, #ffb3c6, #ff6699); border-radius: 15px 0px 15px 0px; opacity: 0.3; animation: fall linear infinite; box-shadow: 0 0 5px rgba(255, 182, 193, 0.3); }
+    @keyframes fall { 0% { transform: translate(0, -10vh) rotate(0deg); opacity: 0; } 10% { opacity: 0.3; } 90% { opacity: 0.3; } 100% { transform: translate(20vw, 110vh) rotate(360deg); opacity: 0; } }
+    .dash-wrapper { position: relative; z-index: 10; }
+</style>
+<div id="sakura-container-history"></div>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const container = document.getElementById('sakura-container-history');
+        if(!container) return;
+        const petalCount = window.innerWidth < 768 ? 10 : 20;
+        for(let i=0; i<petalCount; i++) {
+            let p = document.createElement('div');
+            p.className = 'sakura-petal';
+            p.style.width = p.style.height = (Math.random()*6+4) + 'px';
+            p.style.left = Math.random()*100 + 'vw';
+            p.style.animationDuration = (Math.random()*8+7) + 's';
+            p.style.animationDelay = (Math.random()*5) + 's';
+            container.appendChild(p);
+        }
+    });
+</script>
 
-<!-- FILTERS -->
-<div class="card mb-4 bg-dark border-secondary shadow-sm">
-    <div class="card-body p-3">
-        <form method="GET" class="row g-2 align-items-end">
-            <div class="col-md-3">
-                <label class="small text-muted mb-1">Search</label>
-                <input type="text" name="q" class="form-control form-control-sm bg-black text-white border-secondary" placeholder="ID, Phone, Ref..." value="<?= htmlspecialchars($q) ?>">
+<div class="dash-wrapper">
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="text-white fw-black mb-0 italic tracking-widest">ARCHIVE</h3>
+            <div class="text-pink-400 fw-bold mt-1" style="font-size: 0.7rem; letter-spacing: 2px;">取引履歴</div>
+        </div>
+        <form action="export.php" method="POST" target="_blank" class="m-0">
+            <input type="hidden" name="q" value="<?= htmlspecialchars($q) ?>">
+            <input type="hidden" name="type" value="<?= htmlspecialchars($type) ?>">
+            <input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>">
+            <input type="hidden" name="date_from" value="<?= htmlspecialchars($dateFrom) ?>">
+            <input type="hidden" name="date_to" value="<?= htmlspecialchars($dateTo) ?>">
+            <button type="submit" class="btn btn-sm px-3 py-2 rounded-pill fw-bold border border-success text-success shadow-[0_0_10px_rgba(25,135,84,0.3)] hover:bg-success hover:text-dark transition">
+                <i class="bi bi-download me-1"></i> EXPORT
+            </button>
+        </form>
+    </div>
+
+    <!-- MOBILE-FRIENDLY FILTERS -->
+    <div class="glass-card p-3 mb-4 border border-secondary border-opacity-50 shadow-sm">
+        <form method="GET" id="filterForm">
+            <!-- Search & Scope Row -->
+            <div class="row g-2 mb-2">
+                <div class="col-8">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-black border-secondary text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" name="q" class="form-control bg-black text-white border-secondary" placeholder="ID, Phone..." value="<?= htmlspecialchars($q) ?>">
+                    </div>
+                </div>
+                <div class="col-4">
+                    <select name="scope" class="form-select form-select-sm bg-black text-white border-secondary" onchange="document.getElementById('filterForm').submit()">
+                        <option value="my" <?= $viewScope=='my'?'selected':'' ?>>My Logs</option>
+                        <option value="all" <?= $viewScope=='all'?'selected':'' ?>>All Staff</option>
+                    </select>
+                </div>
             </div>
-            <div class="col-6 col-md-2">
-                <label class="small text-muted mb-1">Type</label>
-                <select name="type" class="form-select form-select-sm bg-black text-white border-secondary">
-                    <option value="all" <?= $type=='all'?'selected':'' ?>>All Types</option>
-                    <option value="deposit" <?= $type=='deposit'?'selected':'' ?>>Deposit</option>
-                    <option value="withdraw" <?= $type=='withdraw'?'selected':'' ?>>Withdraw</option>
-                </select>
+            
+            <!-- Type & Status Row -->
+            <div class="row g-2 mb-2">
+                <div class="col-6">
+                    <select name="type" class="form-select form-select-sm bg-black text-white border-secondary">
+                        <option value="all" <?= $type=='all'?'selected':'' ?>>All Types</option>
+                        <option value="deposit" <?= $type=='deposit'?'selected':'' ?>>Deposits</option>
+                        <option value="withdraw" <?= $type=='withdraw'?'selected':'' ?>>Payouts</option>
+                        <option value="bonus" <?= $type=='bonus'?'selected':'' ?>>Bonuses</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <select name="status" class="form-select form-select-sm bg-black text-white border-secondary">
+                        <option value="all" <?= $status=='all'?'selected':'' ?>>All Status</option>
+                        <option value="approved" <?= $status=='approved'?'selected':'' ?>>Approved</option>
+                        <option value="rejected" <?= $status=='rejected'?'selected':'' ?>>Rejected</option>
+                    </select>
+                </div>
             </div>
-            <div class="col-6 col-md-2">
-                <label class="small text-muted mb-1">Status</label>
-                <select name="status" class="form-select form-select-sm bg-black text-white border-secondary">
-                    <option value="all" <?= $status=='all'?'selected':'' ?>>All Status</option>
-                    <option value="approved" <?= $status=='approved'?'selected':'' ?>>Approved</option>
-                    <option value="rejected" <?= $status=='rejected'?'selected':'' ?>>Rejected</option>
-                </select>
-            </div>
-            <div class="col-6 col-md-2">
-                <label class="small text-muted mb-1">From</label>
-                <input type="date" name="date_from" class="form-control form-control-sm bg-black text-white border-secondary" value="<?= $dateFrom ?>">
-            </div>
-            <div class="col-6 col-md-2">
-                <label class="small text-muted mb-1">To</label>
-                <input type="date" name="date_to" class="form-control form-control-sm bg-black text-white border-secondary" value="<?= $dateTo ?>">
-            </div>
-            <div class="col-md-1">
-                <button class="btn btn-primary btn-sm w-100 fw-bold"><i class="bi bi-filter"></i></button>
+
+            <!-- Date & Submit Row -->
+            <div class="row g-2 align-items-center">
+                <div class="col-5">
+                    <input type="date" name="date_from" class="form-control form-control-sm bg-black text-white border-secondary text-[10px]" value="<?= $dateFrom ?>">
+                </div>
+                <div class="col-5">
+                    <input type="date" name="date_to" class="form-control form-control-sm bg-black text-white border-secondary text-[10px]" value="<?= $dateTo ?>">
+                </div>
+                <div class="col-2">
+                    <button type="submit" class="btn btn-info btn-sm w-100 fw-bold"><i class="bi bi-funnel"></i></button>
+                </div>
             </div>
         </form>
     </div>
-</div>
 
-<!-- TABLE -->
-<div class="card bg-dark border-secondary shadow-sm">
-    <div class="table-responsive">
-        <table class="table table-dark table-hover mb-0 align-middle small">
-            <thead>
-                <tr class="text-secondary text-uppercase" style="font-size: 0.75rem;">
-                    <th>ID</th>
-                    <th>Date</th>
-                    <th>User</th>
-                    <th>Type</th>
-                    <th>Amount</th>
-                    <th>Bank / Note</th>
-                    <th>Processed By</th>
-                    <th>Status</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if(empty($logs)): ?>
-                    <tr><td colspan="9" class="text-center text-muted py-5">No records found matching your filters.</td></tr>
-                <?php else: foreach($logs as $row): 
-                    $isDeposit = $row['type'] === 'deposit';
-                    $color = $isDeposit ? 'success' : 'danger';
-                    $sign = $isDeposit ? '+' : '-';
-                    $icon = $isDeposit ? 'bi-arrow-down-circle' : 'bi-arrow-up-circle';
-                    
-                    // Parse Provider from note if not in joined table (for withdrawals)
-                    $provider = $row['provider_name'];
-                    if (!$provider && preg_match('/\((.*?)\)/', $row['admin_note'], $matches)) {
-                        $provider = $matches[1];
-                    }
+    <!-- RESULTS INFO -->
+    <div class="text-muted small fw-bold tracking-widest mb-3 ps-1">
+        FOUND <?= number_format($totalRecords) ?> RECORDS
+    </div>
 
-                    // Image URL Construction
-                    $proofUrl = '';
-                    if ($row['proof_image']) {
-                        $cleanPath = ltrim($row['proof_image'], '/');
-                        // Ensure API_BASE_URL does not have a trailing slash before appending
-                        $proofUrl = rtrim(API_BASE_URL, '/') . '/' . $cleanPath;
-                    }
-                ?>
-                <tr>
-                    <td><span class="text-muted">#</span><?= $row['id'] ?></td>
-                    <td>
-                        <div class="text-white"><?= date('M d, Y', strtotime($row['created_at'])) ?></div>
-                        <span class="text-muted" style="font-size:0.8em"><?= date('H:i', strtotime($row['created_at'])) ?></span>
-                    </td>
-                    <td>
-                        <div class="fw-bold text-white"><?= htmlspecialchars($row['username']) ?></div>
-                        <div class="font-monospace text-muted" style="font-size:0.85em"><?= htmlspecialchars($row['phone']) ?></div>
-                    </td>
-                    <td>
-                        <span class="badge bg-<?= $color ?> bg-opacity-10 text-<?= $color ?> border border-<?= $color ?> border-opacity-25">
-                            <i class="bi <?= $icon ?> me-1"></i> <?= strtoupper($row['type']) ?>
-                        </span>
-                    </td>
-                    <td class="fw-bold text-<?= $color ?> font-monospace fs-6">
-                        <?= $sign ?><?= number_format($row['amount']) ?>
-                    </td>
-                    <td>
-                        <div class="text-info"><?= htmlspecialchars($provider ?? 'System') ?></div>
-                        <?php if($row['transaction_last_digits']): ?>
-                            <small class="font-monospace text-warning">Ref: <?= htmlspecialchars($row['transaction_last_digits']) ?></small>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <span class="badge bg-secondary text-light">
-                            <i class="bi bi-person-fill"></i> <?= htmlspecialchars($row['admin_name'] ?? 'System') ?>
-                        </span>
-                    </td>
-                    <td>
+    <!-- LOG CARDS (V2 Mobile UI) -->
+    <div class="row g-3">
+        <?php if(empty($logs)): ?>
+            <div class="col-12 text-center text-muted py-5 glass-card border border-dashed border-secondary">
+                <i class="bi bi-journal-x display-4 d-block mb-3 opacity-50"></i>
+                No records found matching filters.
+            </div>
+        <?php else: foreach($logs as $row): 
+            $isDeposit = $row['type'] === 'deposit';
+            $isBonus = $row['type'] === 'bonus';
+            
+            $borderColor = 'border-secondary';
+            $icon = 'bi-arrow-left-right';
+            $iconColor = 'text-muted';
+            $sign = '';
+            
+            if ($row['status'] === 'approved') {
+                if ($isDeposit) { $borderColor = 'border-success'; $icon = 'bi-arrow-down-circle'; $iconColor = 'text-success'; $sign = '+'; }
+                elseif ($isBonus) { $borderColor = 'border-yellow-500'; $icon = 'bi-gift'; $iconColor = 'text-yellow-500'; $sign = '+'; }
+                else { $borderColor = 'border-danger'; $icon = 'bi-arrow-up-circle'; $iconColor = 'text-danger'; $sign = '-'; }
+            } else {
+                $borderColor = 'border-gray-600';
+                $icon = 'bi-x-circle';
+                $iconColor = 'text-gray-500';
+            }
+            
+            // Parse Provider from note if not in joined table (for withdrawals)
+            $provider = $row['provider_name'];
+            if (!$provider && preg_match('/\((.*?)\)/', $row['admin_note'], $matches)) {
+                $provider = $matches[1];
+            }
+
+            // Image URL Construction
+            $proofUrl = '';
+            if ($row['proof_image']) {
+                $cleanPath = ltrim($row['proof_image'], '/');
+                $proofUrl = rtrim(API_BASE_URL, '/') . '/' . $cleanPath;
+            }
+        ?>
+        <div class="col-md-6 col-lg-4">
+            <div class="glass-card p-3 border-start border-4 <?= $borderColor ?> cursor-pointer hover:bg-opacity-80 transition" onclick='openDetailModal(<?= json_encode($row) ?>, "<?= $proofUrl ?>")'>
+                
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi <?= $icon ?> <?= $iconColor ?> fs-5"></i>
+                        <div>
+                            <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wider"><?= $row['type'] ?></div>
+                            <div class="fw-black font-mono <?= $iconColor ?> m-0 lh-1 fs-5"><?= $sign ?><?= number_format($row['amount']) ?></div>
+                        </div>
+                    </div>
+                    <div class="text-end">
                         <?php if($row['status']=='approved'): ?>
-                            <span class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Approved</span>
+                            <span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-50"><i class="bi bi-check2"></i> DONE</span>
                         <?php else: ?>
-                            <span class="text-danger fw-bold"><i class="bi bi-x-circle-fill"></i> Rejected</span>
+                            <span class="badge bg-danger bg-opacity-20 text-danger border border-danger border-opacity-50"><i class="bi bi-x-lg"></i> FAIL</span>
                         <?php endif; ?>
-                    </td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-outline-light" onclick='openDetailModal(<?= json_encode($row) ?>, "<?= $proofUrl ?>")' title="View Details">
-                            <i class="bi bi-eye"></i>
-                        </button>
-                    </td>
-                </tr>
-                <?php endforeach; endif; ?>
-            </tbody>
-        </table>
+                        <div class="text-[9px] text-muted mt-1 font-mono"><?= date('m/d H:i', strtotime($row['created_at'])) ?></div>
+                    </div>
+                </div>
+
+                <div class="bg-black bg-opacity-40 rounded p-2 d-flex justify-content-between align-items-center border border-white border-opacity-5">
+                    <div>
+                        <div class="text-white fw-bold small"><?= htmlspecialchars($row['username']) ?></div>
+                        <div class="text-[9px] text-info font-mono"><?= htmlspecialchars($provider ?? 'System') ?> <?= $row['transaction_last_digits'] ? "(*{$row['transaction_last_digits']})" : "" ?></div>
+                    </div>
+                    <div class="text-end">
+                         <div class="text-[9px] text-gray-500 uppercase">Agent</div>
+                         <div class="text-[10px] text-white fw-bold"><i class="bi bi-person-fill text-muted"></i> <?= htmlspecialchars($row['admin_name'] ?? 'Auto') ?></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <?php endforeach; endif; ?>
     </div>
     
     <!-- PAGINATION -->
     <?php if($totalPages > 1): ?>
-    <div class="card-footer border-secondary py-3">
-        <nav>
-            <ul class="pagination pagination-sm justify-content-center m-0">
-                <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
-                    <a class="page-link bg-dark text-white border-secondary" href="?page=<?= $page-1 ?>&q=<?= urlencode($q) ?>&type=<?= $type ?>&status=<?= $status ?>&date_from=<?= $dateFrom ?>&date_to=<?= $dateTo ?>">&laquo; Prev</a>
-                </li>
-                <li class="page-item disabled"><span class="page-link bg-dark text-white border-secondary">Page <?= $page ?> of <?= $totalPages ?></span></li>
-                <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
-                    <a class="page-link bg-dark text-white border-secondary" href="?page=<?= $page+1 ?>&q=<?= urlencode($q) ?>&type=<?= $type ?>&status=<?= $status ?>&date_from=<?= $dateFrom ?>&date_to=<?= $dateTo ?>">Next &raquo;</a>
-                </li>
-            </ul>
-        </nav>
+    <div class="d-flex justify-content-center mt-4">
+        <ul class="pagination pagination-sm gap-2">
+            <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
+                <a class="page-link bg-black text-white border-secondary rounded-pill px-3" href="?page=<?= $page-1 ?>&q=<?= urlencode($q) ?>&type=<?= $type ?>&status=<?= $status ?>&scope=<?= $viewScope ?>&date_from=<?= $dateFrom ?>&date_to=<?= $dateTo ?>">&laquo; PREV</a>
+            </li>
+            <li class="page-item disabled"><span class="page-link bg-transparent text-muted border-0 fw-bold px-3"><?= $page ?> / <?= $totalPages ?></span></li>
+            <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
+                <a class="page-link bg-black text-white border-secondary rounded-pill px-3" href="?page=<?= $page+1 ?>&q=<?= urlencode($q) ?>&type=<?= $type ?>&status=<?= $status ?>&scope=<?= $viewScope ?>&date_from=<?= $dateFrom ?>&date_to=<?= $dateTo ?>">NEXT &raquo;</a>
+            </li>
+        </ul>
     </div>
     <?php endif; ?>
 </div>
 
-<!-- DETAIL MODAL -->
+<!-- DETAIL MODAL (V2 Bottom Sheet Style) -->
 <div class="modal fade" id="detailModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-dark border-secondary shadow-lg">
-            <div class="modal-header border-secondary py-2">
-                <h6 class="modal-title text-white">Transaction Details</h6>
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content glass-card bg-dark" style="border:none; border-top: 1px solid rgba(255,255,255,0.2); border-radius: 20px 20px 0 0;">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-black text-white italic tracking-widest"><i class="bi bi-receipt text-info"></i> LOG ENTRY</h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <!-- Proof Image Section -->
-                <div id="proofContainer" class="text-center mb-3 d-none">
-                    <div class="bg-black p-1 rounded border border-secondary d-inline-block">
-                         <img id="modalImg" src="" class="img-fluid rounded" style="max-height: 300px; width: auto; object-fit: contain;">
-                    </div>
-                </div>
+            <div class="modal-body pt-3 pb-4">
                 
-                <div class="row mb-3">
-                    <div class="col-6">
-                        <div class="text-muted small">STATUS</div>
-                        <div id="modalStatus" class="fw-bold"></div>
+                <div class="text-center mb-4">
+                    <div class="text-muted small fw-bold tracking-widest uppercase mb-1" id="modalType"></div>
+                    <div id="modalAmount" class="fw-black fs-1 font-mono lh-1 mb-2"></div>
+                    <div id="modalStatus"></div>
+                </div>
+
+                <div class="bg-black bg-opacity-50 p-3 rounded-4 border border-secondary mb-3 space-y-2 text-sm font-mono">
+                    <div class="d-flex justify-content-between border-b border-white border-opacity-10 pb-1">
+                        <span class="text-muted">TX ID</span>
+                        <span class="text-white fw-bold" id="modalId"></span>
                     </div>
-                    <div class="col-6 text-end">
-                        <div class="text-muted small">AMOUNT</div>
-                        <div id="modalAmount" class="fw-bold text-warning fs-5 font-monospace"></div>
+                    <div class="d-flex justify-content-between border-b border-white border-opacity-10 pb-1">
+                        <span class="text-muted">Date</span>
+                        <span class="text-white" id="modalProcessedAt"></span>
+                    </div>
+                    <div class="d-flex justify-content-between border-b border-white border-opacity-10 pb-1">
+                        <span class="text-muted">Player</span>
+                        <span class="text-info fw-bold" id="modalUser"></span>
+                    </div>
+                    <div class="d-flex justify-content-between border-b border-white border-opacity-10 pb-1">
+                        <span class="text-muted">Bank/Ref</span>
+                        <span class="text-warning fw-bold" id="modalRef"></span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Agent</span>
+                        <span class="text-white" id="modalAdmin"></span>
                     </div>
                 </div>
 
-                <div class="bg-black p-3 rounded border border-secondary mb-3">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span class="text-muted small text-uppercase fw-bold">Admin Note / Reason</span>
-                        <span class="text-secondary small" id="modalProcessedAt"></span>
-                    </div>
-                    <p class="text-white small mb-0 fst-italic" id="modalNote"></p>
+                <div class="bg-black bg-opacity-30 p-3 rounded-4 border border-white border-opacity-5 mb-3">
+                    <div class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="bi bi-file-text me-1"></i> Agent Note</div>
+                    <p class="text-white text-xs mb-0 fst-italic" id="modalNote"></p>
                 </div>
                 
-                <table class="table table-dark table-sm table-borderless small mb-0">
-                    <tr><td class="text-muted">Transaction ID:</td><td class="text-end font-monospace" id="modalId"></td></tr>
-                    <tr><td class="text-muted">User:</td><td class="text-end" id="modalUser"></td></tr>
-                    <tr><td class="text-muted">Reference:</td><td class="text-end text-info" id="modalRef"></td></tr>
-                    <tr><td class="text-muted">Processed By:</td><td class="text-end" id="modalAdmin"></td></tr>
-                </table>
-            </div>
-            <div class="modal-footer border-secondary py-1">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                <!-- Proof Image Section -->
+                <div id="proofContainer" class="d-none">
+                    <div class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="bi bi-image me-1"></i> Attached Proof</div>
+                    <div class="bg-black p-1 rounded-4 border border-secondary d-flex justify-content-center align-items-center overflow-hidden" style="height: 200px;">
+                         <img id="modalImg" src="" class="img-fluid object-fit-contain w-100 h-100">
+                    </div>
+                    <a id="proofLink" href="#" target="_blank" class="btn btn-sm btn-outline-info w-100 rounded-pill mt-2 fw-bold">OPEN FULL SIZE</a>
+                </div>
+
             </div>
         </div>
     </div>
 </div>
 
 <script>
-// Use the constant defined by PHP for consistent image paths
-const API_BASE_URL = "<?= API_BASE_URL ?>";
-
 function openDetailModal(tx, imgUrl) {
     document.getElementById('modalId').innerText = "#" + tx.id;
+    document.getElementById('modalType').innerText = tx.type;
+    
+    // Format Amount
+    const amtEl = document.getElementById('modalAmount');
+    amtEl.innerText = new Intl.NumberFormat().format(tx.amount) + " MMK";
+    if(tx.type === 'deposit' || tx.type === 'bonus') amtEl.className = 'fw-black fs-1 font-mono lh-1 mb-2 text-success';
+    else amtEl.className = 'fw-black fs-1 font-mono lh-1 mb-2 text-danger';
+
     document.getElementById('modalUser').innerText = tx.username + " (" + tx.phone + ")";
-    document.getElementById('modalAmount').innerText = new Intl.NumberFormat().format(tx.amount) + " MMK";
-    document.getElementById('modalRef').innerText = tx.transaction_last_digits || '-';
-    document.getElementById('modalAdmin').innerText = tx.admin_name || 'System';
-    document.getElementById('modalProcessedAt').innerText = tx.updated_at;
+    
+    const prov = tx.provider_name || 'System';
+    const ref = tx.transaction_last_digits ? ` (*${tx.transaction_last_digits})` : '';
+    document.getElementById('modalRef').innerText = prov + ref;
+    
+    document.getElementById('modalAdmin').innerText = tx.admin_name || 'Auto/System';
+    document.getElementById('modalProcessedAt').innerText = tx.updated_at || tx.created_at;
     
     // Status Logic
     const statusEl = document.getElementById('modalStatus');
-    if (tx.status === 'approved') statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle-fill"></i> APPROVED</span>';
-    else if (tx.status === 'rejected') statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle-fill"></i> REJECTED</span>';
-    else statusEl.innerHTML = '<span class="text-warning">PENDING</span>';
+    if (tx.status === 'approved') statusEl.innerHTML = '<span class="badge bg-success px-3 py-2 rounded-pill"><i class="bi bi-check-circle-fill"></i> APPROVED</span>';
+    else if (tx.status === 'rejected') statusEl.innerHTML = '<span class="badge bg-danger px-3 py-2 rounded-pill"><i class="bi bi-x-circle-fill"></i> REJECTED</span>';
+    else statusEl.innerHTML = '<span class="badge bg-warning text-dark px-3 py-2 rounded-pill">PENDING</span>';
 
     // Note Logic
-    document.getElementById('modalNote').innerText = tx.admin_note || "No notes recorded.";
+    document.getElementById('modalNote').innerText = tx.admin_note || "No additional notes provided.";
     
     // Image Logic
     const imgContainer = document.getElementById('proofContainer');
     const imgEl = document.getElementById('modalImg');
+    const proofLink = document.getElementById('proofLink');
     
     if (imgUrl) {
         imgEl.src = imgUrl;
+        proofLink.href = imgUrl;
         imgContainer.classList.remove('d-none');
     } else {
         imgContainer.classList.add('d-none');
