@@ -116,16 +116,22 @@ $totalPages = ceil($totalRecords / $limit);
             <h3 class="text-white fw-black mb-0 italic tracking-widest">ARCHIVE</h3>
             <div class="text-pink-400 fw-bold mt-1" style="font-size: 0.7rem; letter-spacing: 2px;">取引履歴</div>
         </div>
-        <form action="export.php" method="POST" target="_blank" class="m-0">
-            <input type="hidden" name="q" value="<?= htmlspecialchars($q) ?>">
-            <input type="hidden" name="type" value="<?= htmlspecialchars($type) ?>">
-            <input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>">
-            <input type="hidden" name="date_from" value="<?= htmlspecialchars($dateFrom) ?>">
-            <input type="hidden" name="date_to" value="<?= htmlspecialchars($dateTo) ?>">
-            <button type="submit" class="btn btn-sm px-3 py-2 rounded-pill fw-bold border border-success text-success shadow-[0_0_10px_rgba(25,135,84,0.3)] hover:bg-success hover:text-dark transition">
-                <i class="bi bi-download me-1"></i> EXPORT
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm px-3 py-2 rounded-pill fw-bold border border-info text-info shadow-[0_0_10px_rgba(13,202,240,0.3)] hover:bg-info hover:text-dark transition" onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise me-1"></i> REFRESH
             </button>
-        </form>
+            <form action="export.php" method="POST" target="_blank" class="m-0 d-inline">
+                <input type="hidden" name="export" value="1">
+                <input type="hidden" name="q" value="<?= htmlspecialchars($q) ?>">
+                <input type="hidden" name="type" value="<?= htmlspecialchars($type) ?>">
+                <input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>">
+                <input type="hidden" name="date_from" value="<?= htmlspecialchars($dateFrom) ?>">
+                <input type="hidden" name="date_to" value="<?= htmlspecialchars($dateTo) ?>">
+                <button type="submit" class="btn btn-sm px-3 py-2 rounded-pill fw-bold border border-success text-success shadow-[0_0_10px_rgba(25,135,84,0.3)] hover:bg-success hover:text-dark transition">
+                    <i class="bi bi-download me-1"></i> EXPORT
+                </button>
+            </form>
+        </div>
     </div>
 
     <!-- MOBILE-FRIENDLY FILTERS -->
@@ -204,7 +210,7 @@ $totalPages = ceil($totalRecords / $limit);
             
             if ($row['status'] === 'approved') {
                 if ($isDeposit) { $borderColor = 'border-success'; $icon = 'bi-arrow-down-circle'; $iconColor = 'text-success'; $sign = '+'; }
-                elseif ($isBonus) { $borderColor = 'border-yellow-500'; $icon = 'bi-gift'; $iconColor = 'text-yellow-500'; $sign = '+'; }
+                elseif ($isBonus) { $borderColor = 'border-warning'; $icon = 'bi-gift'; $iconColor = 'text-warning'; $sign = '+'; }
                 else { $borderColor = 'border-danger'; $icon = 'bi-arrow-up-circle'; $iconColor = 'text-danger'; $sign = '-'; }
             } else {
                 $borderColor = 'border-gray-600';
@@ -295,19 +301,19 @@ $totalPages = ceil($totalRecords / $limit);
                 </div>
 
                 <div class="bg-black bg-opacity-50 p-3 rounded-4 border border-secondary mb-3 space-y-2 text-sm font-mono">
-                    <div class="d-flex justify-content-between border-b border-white border-opacity-10 pb-1">
+                    <div class="d-flex justify-content-between border-bottom border-white border-opacity-10 pb-1">
                         <span class="text-muted">TX ID</span>
                         <span class="text-white fw-bold" id="modalId"></span>
                     </div>
-                    <div class="d-flex justify-content-between border-b border-white border-opacity-10 pb-1">
+                    <div class="d-flex justify-content-between border-bottom border-white border-opacity-10 pb-1">
                         <span class="text-muted">Date</span>
                         <span class="text-white" id="modalProcessedAt"></span>
                     </div>
-                    <div class="d-flex justify-content-between border-b border-white border-opacity-10 pb-1">
+                    <div class="d-flex justify-content-between border-bottom border-white border-opacity-10 pb-1">
                         <span class="text-muted">Player</span>
                         <span class="text-info fw-bold" id="modalUser"></span>
                     </div>
-                    <div class="d-flex justify-content-between border-b border-white border-opacity-10 pb-1">
+                    <div class="d-flex justify-content-between border-bottom border-white border-opacity-10 pb-1">
                         <span class="text-muted">Bank/Ref</span>
                         <span class="text-warning fw-bold" id="modalRef"></span>
                     </div>
