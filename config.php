@@ -20,7 +20,7 @@ try {
 }
 
 // API Configuration
-define('API_BASE_URL', 'https://gameapi.braix.online/');
+define('API_BASE_URL', 'https://slofinace.website/');
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
