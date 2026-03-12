@@ -85,10 +85,10 @@ $ipClusters = $pdo->query("
         
         <!-- VELOCITY ALERTS -->
         <div class="col-lg-6">
-            <div class="glass-card h-100 border border-danger border-opacity-50 overflow-hidden">
+            <div class="glass-card h-100 border border-danger border-opacity-50 overflow-hidden p-0">
                 <div class="bg-danger bg-opacity-20 text-danger fw-black p-3 border-b border-danger border-opacity-25 tracking-widest italic d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-speedometer me-2"></i> HIGH VELOCITY</span>
-                    <span class="badge bg-danger text-white rounded-pill font-mono"><?= count($velocityUsers) ?></span>
+                    <span class="badge bg-danger text-white rounded-pill font-mono px-2 py-1"><?= count($velocityUsers) ?></span>
                 </div>
                 <div class="p-3">
                     <p class="text-xs text-muted mb-3 font-mono">Flags users depositing and withdrawing within 10 minutes. Potential money laundering or arbitrage.</p>
@@ -96,7 +96,7 @@ $ipClusters = $pdo->query("
                         <?php foreach($velocityUsers as $v): ?>
                         <div class="bg-black bg-opacity-50 p-3 rounded-3 border border-danger border-opacity-25 d-flex justify-content-between align-items-center hover:bg-opacity-70 transition">
                             <div>
-                                <div class="fw-bold text-white fs-6"><?= htmlspecialchars($v['username']) ?></div>
+                                <div class="fw-bold text-white fs-6 tracking-wide"><?= htmlspecialchars($v['username']) ?></div>
                                 <div class="text-muted font-mono" style="font-size: 0.7rem;"><?= htmlspecialchars($v['phone']) ?></div>
                             </div>
                             <div class="text-end">
@@ -112,10 +112,10 @@ $ipClusters = $pdo->query("
 
         <!-- RTP ANOMALIES -->
         <div class="col-lg-6">
-            <div class="glass-card h-100 border border-warning border-opacity-50 overflow-hidden">
+            <div class="glass-card h-100 border border-warning border-opacity-50 overflow-hidden p-0">
                 <div class="bg-warning bg-opacity-20 text-warning fw-black p-3 border-b border-warning border-opacity-25 tracking-widest italic d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-graph-up-arrow me-2"></i> RTP ANOMALY</span>
-                    <span class="badge bg-warning text-dark rounded-pill font-mono"><?= count($arbitrageUsers) ?></span>
+                    <span class="badge bg-warning text-dark rounded-pill font-mono px-2 py-1"><?= count($arbitrageUsers) ?></span>
                 </div>
                 <div class="p-3">
                     <p class="text-xs text-muted mb-3 font-mono">Users winning >120% of their bets (over 20k volume) in the last 24h. Monitor for exploitation.</p>
@@ -123,7 +123,7 @@ $ipClusters = $pdo->query("
                         <?php foreach($arbitrageUsers as $a): ?>
                         <div class="bg-black bg-opacity-50 p-3 rounded-3 border border-warning border-opacity-25 d-flex justify-content-between align-items-center hover:bg-opacity-70 transition">
                             <div>
-                                <div class="fw-bold text-white fs-6"><?= htmlspecialchars($a['username']) ?></div>
+                                <div class="fw-bold text-white fs-6 tracking-wide"><?= htmlspecialchars($a['username']) ?></div>
                                 <div class="d-flex gap-2 mt-1" style="font-size: 0.65rem;">
                                     <span class="text-muted font-mono">In: <?= number_format($a['total_bet']) ?></span>
                                     <span class="text-success font-mono">Out: <?= number_format($a['total_win']) ?></span>
@@ -141,10 +141,10 @@ $ipClusters = $pdo->query("
 
         <!-- IP CLUSTERS -->
         <div class="col-12">
-            <div class="glass-card border border-info border-opacity-50 overflow-hidden">
+            <div class="glass-card border border-info border-opacity-50 overflow-hidden p-0">
                 <div class="bg-info bg-opacity-20 text-info fw-black p-3 border-b border-info border-opacity-25 tracking-widest italic d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-diagram-3-fill me-2"></i> MULTI-ACCOUNT CLUSTERS</span>
-                    <span class="badge bg-info text-dark rounded-pill font-mono"><?= count($ipClusters) ?></span>
+                    <span class="badge bg-info text-dark rounded-pill font-mono px-2 py-1"><?= count($ipClusters) ?></span>
                 </div>
                 <div class="p-3">
                     <p class="text-xs text-muted mb-3 font-mono">Multiple accounts operating from the exact same IP address. High risk of bonus abuse.</p>
@@ -152,13 +152,13 @@ $ipClusters = $pdo->query("
                         <?php foreach($ipClusters as $ip): ?>
                         <div class="col-md-6 col-lg-4">
                             <div class="bg-black bg-opacity-50 p-3 rounded-3 border border-info border-opacity-25 h-100 hover:border-opacity-50 transition">
-                                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-b border-white border-opacity-10">
+                                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom border-white border-opacity-10">
                                     <span class="font-mono text-cyan-400 fw-bold letter-spacing-1"><?= htmlspecialchars($ip['last_ip']) ?></span>
                                     <span class="badge bg-danger text-white rounded-pill px-2 py-1 shadow-[0_0_10px_red] animate-pulse">
                                         <?= $ip['account_count'] ?> LINKED
                                     </span>
                                 </div>
-                                <div class="text-muted small lh-sm">
+                                <div class="text-muted small lh-sm font-mono mt-2" style="font-size: 0.75rem;">
                                     <?= htmlspecialchars($ip['accounts']) ?>
                                 </div>
                             </div>
