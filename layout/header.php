@@ -111,7 +111,7 @@ async function toggleStatus(isOnline) {
     try {
         // Point to the API created in Step 58
         // Using absolute path relative to web root is safer in some configs, but relative is fine if structure maintained
-        const res = await fetch('../api/staff/status.php', {
+        const res = await fetch('https://apisuro.online/staff/status.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ status: isOnline })
