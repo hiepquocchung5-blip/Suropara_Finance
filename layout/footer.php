@@ -1,36 +1,42 @@
 </div> <!-- End Container -->
 
-    <!-- BOTTOM NAV -->
-    <div class="bottom-nav">
-        <a href="dashboard.php" class="nav-item-link <?= basename($_SERVER['PHP_SELF']) == 'dashboard.php' ? 'active' : '' ?>">
+    <!-- MOBILE FLOATING DOCK -->
+    <div class="bottom-dock">
+        <a href="dashboard.php" class="dock-item <?= basename($_SERVER['PHP_SELF']) == 'dashboard.php' ? 'active' : '' ?>">
             <i class="bi bi-grid-fill"></i>
-            <span>Home</span>
+            <span>HOME</span>
         </a>
-        <a href="queue.php" class="nav-item-link <?= basename($_SERVER['PHP_SELF']) == 'queue.php' ? 'active' : '' ?>">
-            <i class="bi bi-list-check"></i>
-            <span>Queue</span>
+        <a href="queue.php" class="dock-item <?= basename($_SERVER['PHP_SELF']) == 'queue.php' ? 'active' : '' ?>">
+            <i class="bi bi-lightning-charge-fill"></i>
+            <span>QUEUE</span>
         </a>
-        <a href="history.php" class="nav-item-link <?= basename($_SERVER['PHP_SELF']) == 'history.php' ? 'active' : '' ?>">
+        <a href="history.php" class="dock-item <?= basename($_SERVER['PHP_SELF']) == 'history.php' ? 'active' : '' ?>">
             <i class="bi bi-clock-history"></i>
-            <span>History</span>
+            <span>LOGS</span>
         </a>
-        <a href="wallets.php" class="nav-item-link <?= basename($_SERVER['PHP_SELF']) == 'wallets.php' ? 'active' : '' ?>">
-            <i class="bi bi-credit-card-2-front"></i>
-            <span>Wallets</span>
+        <a href="wallets.php" class="dock-item <?= basename($_SERVER['PHP_SELF']) == 'wallets.php' ? 'active' : '' ?>">
+            <i class="bi bi-wallet-fill"></i>
+            <span>BANKS</span>
         </a>
-        <a href="profile.php" class="nav-item-link <?= basename($_SERVER['PHP_SELF']) == 'profile.php' ? 'active' : '' ?>">
-            <i class="bi bi-person-circle"></i>
-            <span>Me</span>
+        <a href="profile.php" class="dock-item <?= basename($_SERVER['PHP_SELF']) == 'profile.php' ? 'active' : '' ?>">
+            <i class="bi bi-person-badge-fill"></i>
+            <span>ME</span>
         </a>
     </div>
 
+    <!-- Bootstrap Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Form Auto-Loader: Prevents double clicks and gives visual feedback -->
     <script>
-        function toggleTheme() {
-            const html = document.documentElement;
-            const current = html.getAttribute('data-bs-theme');
-            html.setAttribute('data-bs-theme', current === 'dark' ? 'light' : 'dark');
-        }
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function() {
+                // Don't show full loader for quick toggles, only for main actions
+                if (!this.classList.contains('no-loader')) {
+                    showLoader();
+                }
+            });
+        });
     </script>
 </body>
 </html>
