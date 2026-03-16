@@ -50,7 +50,7 @@ if (session_status() === PHP_SESSION_NONE) {
             'domain' => getEnvSafe('COOKIE_DOMAIN') ?: '', 
             'secure' => true,
             'httponly' => true,
-            'samesite' => 'None'
+            'samesite' => 'Strict'
         ]);
     }
     session_start();
