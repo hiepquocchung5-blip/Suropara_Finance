@@ -39,19 +39,34 @@ try {
 }
 
 // 5. Session Setup
+// 5. Session Setup (FIXED FOR 500 ERROR AND ANDROID WEBVIEW COMPATIBILITY)
 if (session_status() === PHP_SESSION_NONE) {
     if (getEnvSafe('APP_ENV') === 'production') {
         ini_set('session.cookie_secure', 1); 
         ini_set('session.cookie_httponly', 1); 
         ini_set('session.use_strict_mode', 1);
-        session_set_cookie_params([
-            'lifetime' => 86400,
-            'path' => '/',
-            'domain' => getEnvSafe('COOKIE_DOMAIN') ?: '', 
-            'secure' => true,
-            'httponly' => true,
-            'samesite' => 'None'
-        ]);
+        
+        // PHP 7.3+ supports array syntax. Older versions fail with 500 error.
+        // We use 'Lax' instead of 'Strict' so Android WebViews don't drop the session.
+        if (PHP_VERSION_ID >= 70300) {
+            session_set_cookie_params([
+                'lifetime' => 86400,
+                'path' => '/',
+                'domain' => getEnvSafe('COOKIE_DOMAIN') ?: '', 
+                'secure' => true,
+                'httponly' => true,
+                'samesite' => 'Lax' 
+            ]);
+        } else {
+            // Backward compatibility for PHP < 7.3
+            session_set_cookie_params(
+                86400, 
+                '/; samesite=Lax', 
+                getEnvSafe('COOKIE_DOMAIN') ?: '', 
+                true, 
+                true
+            );
+        }
     }
     session_start();
 }
